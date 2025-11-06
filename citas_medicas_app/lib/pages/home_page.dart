@@ -1,10 +1,11 @@
-// lib/pages/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../models/appointment.dart';
 import '../services/storage_service.dart';
 import 'add_edit_page.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,7 +16,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final StorageService storage = StorageService();
   List<Appointment> appointments = [];
-  final DateFormat fmt = DateFormat('yyyy-MM-dd HH:mm');
+  final DateFormat fmt = DateFormat('dd MMM yyyy, HH:mm');
 
   @override
   void initState() {
@@ -34,34 +35,47 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openAdd() async {
-    final result = await Navigator.push<bool>(
+    final appt = await Navigator.push<Appointment>(
       context,
-      MaterialPageRoute(builder: (_) => const AddEditAppointmentPage()),
+      MaterialPageRoute(builder: (_) => const AddEditPage()),
     );
-    if (result == true) await _load();
+    if (appt != null) {
+      await storage.addAppointment(appt);
+      await _load();
+    }
   }
 
   void _openEdit(Appointment ap) async {
-    final result = await Navigator.push<bool>(
+    final appt = await Navigator.push<Appointment>(
       context,
-      MaterialPageRoute(builder: (_) => AddEditAppointmentPage(appointment: ap)),
+      MaterialPageRoute(builder: (_) => AddEditPage(appointment: ap)),
     );
-    if (result == true) await _load();
+    if (appt != null) {
+      await storage.updateAppointment(appt);
+      await _load();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Citas Médicas'),
+        title: Text('Citas Médicas',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.teal,
         centerTitle: true,
       ),
       body: appointments.isEmpty
-          ? const Center(
-              child: Text('No hay citas. Usa el botón + para agregar.'),
+          ? Center(
+              child: Text(
+                'No hay citas registradas.\nToca el botón + para agregar una.',
+                style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
+                textAlign: TextAlign.center,
+              ),
             )
           : ListView.builder(
               itemCount: appointments.length,
+              padding: const EdgeInsets.all(12),
               itemBuilder: (context, i) {
                 final ap = appointments[i];
                 return Slidable(
@@ -83,15 +97,26 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ],
                   ),
-                  child: ListTile(
-                    title: Text('${ap.patientName} — ${ap.doctor}'),
-                    subtitle: Text(fmt.format(ap.dateTime)),
-                    onTap: () => _openEdit(ap),
-                  ),
+                  child: Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 4,
+                    child: ListTile(
+                      title: Text('${ap.patientName} — ${ap.doctor}',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+                      subtitle: Text(
+                        '${fmt.format(ap.dateTime)}\n${ap.description}',
+                        style: GoogleFonts.poppins(color: Colors.grey[700]),
+                      ),
+                      isThreeLine: true,
+                      leading: const Icon(Icons.calendar_today, color: Colors.teal),
+                      onTap: () => _openEdit(ap),
+                    ),
+                  ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.teal,
         onPressed: _openAdd,
         child: const Icon(Icons.add),
       ),

@@ -1,4 +1,3 @@
-// lib/models/appointment.dart
 import 'dart:convert';
 
 class Appointment {
@@ -6,14 +5,14 @@ class Appointment {
   String patientName;
   String doctor;
   DateTime dateTime;
-  String notes;
+  String description;
 
   Appointment({
     required this.id,
     required this.patientName,
     required this.doctor,
     required this.dateTime,
-    this.notes = '',
+    this.description = '',
   });
 
   factory Appointment.fromMap(Map<String, dynamic> map) {
@@ -22,7 +21,7 @@ class Appointment {
       patientName: map['patientName'] as String,
       doctor: map['doctor'] as String,
       dateTime: DateTime.parse(map['dateTime'] as String),
-      notes: map['notes'] as String? ?? '',
+      description: map['description'] as String? ?? '',
     );
   }
 
@@ -32,7 +31,7 @@ class Appointment {
       'patientName': patientName,
       'doctor': doctor,
       'dateTime': dateTime.toIso8601String(),
-      'notes': notes,
+      'description': description,
     };
   }
 

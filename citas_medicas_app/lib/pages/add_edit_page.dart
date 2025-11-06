@@ -1,135 +1,161 @@
 // lib/pages/add_edit_page.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/appointment.dart';
-import '../services/storage_service.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
-class AddEditAppointmentPage extends StatefulWidget {
+class AddEditPage extends StatefulWidget {
   final Appointment? appointment;
-  const AddEditAppointmentPage({super.key, this.appointment});
+
+  const AddEditPage({super.key, this.appointment});
 
   @override
-  State<AddEditAppointmentPage> createState() => _AddEditAppointmentPageState();
+  State<AddEditPage> createState() => _AddEditPageState();
 }
 
-class _AddEditAppointmentPageState extends State<AddEditAppointmentPage> {
+class _AddEditPageState extends State<AddEditPage> {
   final _formKey = GlobalKey<FormState>();
-  final StorageService storage = StorageService();
+  final _uuid = const Uuid();
 
-  late TextEditingController _patientController;
-  late TextEditingController _doctorController;
-  late TextEditingController _notesController;
-  DateTime? _selectedDateTime;
+  late TextEditingController _patientCtrl;
+  late TextEditingController _doctorCtrl;
+  late TextEditingController _descCtrl;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
-    final ap = widget.appointment;
-    _patientController = TextEditingController(text: ap?.patientName ?? '');
-    _doctorController = TextEditingController(text: ap?.doctor ?? '');
-    _notesController = TextEditingController(text: ap?.notes ?? '');
-    _selectedDateTime = ap?.dateTime ?? DateTime.now().add(const Duration(hours: 1));
+    _patientCtrl = TextEditingController(text: widget.appointment?.patientName ?? '');
+    _doctorCtrl = TextEditingController(text: widget.appointment?.doctor ?? '');
+    _descCtrl = TextEditingController(text: widget.appointment?.description ?? '');
+    _selectedDate = widget.appointment?.dateTime;
   }
 
   @override
   void dispose() {
-    _patientController.dispose();
-    _doctorController.dispose();
-    _notesController.dispose();
+    _patientCtrl.dispose();
+    _doctorCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickDateTime() async {
-    final initialDate = _selectedDateTime ?? DateTime.now();
     final date = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
     );
     if (date == null) return;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initialDate),
+      initialTime: TimeOfDay.fromDateTime(_selectedDate ?? DateTime.now()),
     );
     if (time == null) return;
     setState(() {
-      _selectedDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _selectedDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
   }
 
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    final id = widget.appointment?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
-    final newAp = Appointment(
-      id: id,
-      patientName: _patientController.text.trim(),
-      doctor: _doctorController.text.trim(),
-      dateTime: _selectedDateTime ?? DateTime.now(),
-      notes: _notesController.text.trim(),
+  void _save() {
+    if (!_formKey.currentState!.validate() || _selectedDate == null) return;
+    final appt = Appointment(
+      id: widget.appointment?.id ?? _uuid.v4(),
+      patientName: _patientCtrl.text.trim(),
+      doctor: _doctorCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      dateTime: _selectedDate!,
     );
-
-    if (widget.appointment == null) {
-      await storage.addAppointment(newAp);
-    } else {
-      await storage.updateAppointment(newAp);
-    }
-    if (mounted) Navigator.of(context).pop(true);
+    Navigator.pop(context, appt);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.appointment != null;
-    final fmt = DateFormat('yyyy-MM-dd HH:mm');
+    final fmt = DateFormat('dd MMM yyyy – HH:mm');
+    final isEditing = widget.appointment != null;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEdit ? 'Editar cita' : 'Nueva cita')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _patientController,
-                decoration: const InputDecoration(labelText: 'Nombre del paciente'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _doctorController,
-                decoration: const InputDecoration(labelText: 'Doctor / Especialidad'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: _pickDateTime,
-                child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Fecha y hora'),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      appBar: AppBar(
+        title: Text(isEditing ? 'Editar Cita' : 'Nueva Cita'),
+        backgroundColor: Colors.teal,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 4,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _patientCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre del paciente',
+                      prefixIcon: const Icon(Icons.person),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _doctorCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Doctor',
+                      prefixIcon: const Icon(Icons.medical_services),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Descripción',
+                      prefixIcon: const Icon(Icons.description),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
-                      Text(_selectedDateTime == null ? 'Seleccionar' : fmt.format(_selectedDateTime!)),
-                      const Icon(Icons.calendar_today),
+                      Expanded(
+                        child: Text(
+                          _selectedDate == null
+                              ? 'Sin fecha seleccionada'
+                              : fmt.format(_selectedDate!),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _pickDateTime,
+                        icon: const Icon(Icons.calendar_today),
+                        label: const Text('Seleccionar'),
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _save,
+                      icon: const Icon(Icons.save),
+                      label: Text(isEditing ? 'Guardar cambios' : 'Guardar cita'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        backgroundColor: Colors.teal,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notas (opcional)'),
-                maxLines: 3,
-              ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _save,
-                  child: Text(isEdit ? 'Guardar cambios' : 'Crear cita'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
